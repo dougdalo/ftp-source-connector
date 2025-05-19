@@ -1,19 +1,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>br.com.datastreambrasil.kafka.connector</groupId>
 	<artifactId>ftp-source-connector</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<packaging>jar</packaging>
 
 	<name>FTP/SFTP Source Connector</name>
 	<description>Kafka Connect Source Connector for CSV over FTP and SFTP</description>
 
 	<properties>
-		<maven.compiler.source>21</maven.compiler.source>
-		<maven.compiler.target>21</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<kafka.version>3.9.0</kafka.version>
 		<commons-net.version>3.9.0</commons-net.version>
@@ -21,6 +18,12 @@
 		<slf4j.version>2.0.13</slf4j.version>
 		<junit.version>5.10.0</junit.version>
 		<mockito.version>5.10.0</mockito.version>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
+		<maven.assembly.version>3.3.0</maven.assembly.version>
+		<maven.shade.version>3.4.1</maven.shade.version>
+		<maven.surefire.version>3.2.5</maven.surefire.version>
+		<maven.jacoco.version>0.8.10</maven.jacoco.version>
 	</properties>
 
 	<dependencies>
@@ -76,22 +79,10 @@
 
 	<build>
 		<plugins>
-			<!-- Compilação -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.11.0</version>
-				<configuration>
-					<source>${maven.compiler.source}</source>
-					<target>${maven.compiler.target}</target>
-				</configuration>
-			</plugin>
-
-			<!-- Assembly JAR with dependencies -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>3.6.0</version>
+				<version>${maven.assembly.version}</version>
 				<configuration>
 					<archive>
 						<manifest>
@@ -114,18 +105,40 @@
 				</executions>
 			</plugin>
 
+			<!-- Empacotamento com META-INF/services
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>${maven.shade.version}</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers> <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" /> <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>br.com.datastreambrasil.kafka.connector.ftp.FtpSourceConnector</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin> -->
+
 			<!-- Suporte a testes unitarios -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.2.5</version>
+				<version>${maven.surefire.version}</version>
 			</plugin>
 
 			<!-- Suporte a cobertura de testes -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.10</version>
+				<version>${maven.jacoco.version}</version>
 				<executions>
 					<execution>
 						<goals>
