@@ -109,7 +109,7 @@ public class FtpSourceTask extends SourceTask {
             }
 
             boolean eof = false;
-            String line;
+            String line = null;
             while (records.size() < maxRecordsPerPoll && (line = currentReader.readLine()) != null) {
                 Map<String, String> sourcePartition = Collections.singletonMap("file", currentFilename);
                 Map<String, Long> sourceOffset = Collections.singletonMap("position", System.currentTimeMillis());
