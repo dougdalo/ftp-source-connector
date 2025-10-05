@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -183,22 +184,36 @@ public class FtpSourceTask extends SourceTask {
             if (eof) {
                 if (currentReader != null)
                     currentReader.close();
-                if (client instanceof FtpRemoteClient ftp) {
-                    ftp.completePending();
+                if (client instanceof FtpRemoteClient) {
+                    ((FtpRemoteClient) client).completePending();
                 }
                 if (currentStream != null)
                     currentStream.close();
 
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS");
                 String timestamp = LocalDateTime.now().format(formatter);
-                String archiveFilename = currentFilename.replaceAll("(\\.\\w+)$", "_" + timestamp + "$1");
-                String archivedPath = archiveDir + "/" + archiveFilename;
+                String summaryFilename = currentFilename.replaceAll("(\\.\\w+)?$", "_" + timestamp + ".txt");
+                String summaryPath = archiveDir + "/" + summaryFilename;
+                String summaryContent = String.format(Locale.ROOT,
+                        "File: %s%nLines processed: %d%nProcessed at: %s%nProcessing time (ms): %d%nAverage line read time (ms): %d%nMax line read time (ms): %d",
+                        currentFilename,
+                        linesProcessed,
+                        timestamp,
+                        generalEstimatedTime,
+                        readLineAverageTime,
+                        readLineMaxTime);
 
-                log.info("Archiving file: {} → {}", currentStagedPath, archivedPath);
+                log.info("Deleting staged file: {}", currentStagedPath);
                 long startTime = System.currentTimeMillis();
-                client.moveFile(currentStagedPath, archivedPath);
+                client.deleteFile(currentStagedPath);
                 long estimatedTime = System.currentTimeMillis() - startTime;
-                log.info("Archived file: {} → {} in {} ms", currentStagedPath, archivedPath, estimatedTime);
+                log.info("Deleted staged file: {} in {} ms", currentStagedPath, estimatedTime);
+
+                log.info("Writing summary file: {}", summaryPath);
+                startTime = System.currentTimeMillis();
+                client.writeTextFile(summaryPath, summaryContent, Charset.forName(fileEncoding));
+                estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Summary file written: {} in {} ms", summaryPath, estimatedTime);
 
                 log.info("Finished processing file {} with {} lines in {} ms (row read avg {} ms max {} ms)", currentFilename, linesProcessed, generalEstimatedTime, readLineAverageTime, readLineMaxTime);
                 currentReader = null;
