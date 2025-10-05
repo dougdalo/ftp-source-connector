@@ -7,7 +7,7 @@ Each file is read line by line, and each line is sent as an independent Kafka re
 
 ## Features
 
-- Supports FTP and SFTP protocols  
+- Supports FTP and SFTP protocols
 - Processes files line-by-line
 - Configurable:
   - File encoding (`ftp.file.encoding`)
@@ -23,6 +23,12 @@ Each file is read line by line, and each line is sent as an independent Kafka re
 - Generates a summary report file in the archive directory after processing and removes the staged copy
 - Summary files include a timestamp in filename
   Format: `yyyyMMdd_HHmmssSSS` (e.g., `WB1_20250408_121045123.txt`)
+
+---
+
+## Requirements
+
+- Build with Java 11 (compatible with Kafka Connect distributions that still run on Java 11)
 
 ---
 
