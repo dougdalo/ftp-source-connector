@@ -184,8 +184,8 @@ public class FtpSourceTask extends SourceTask {
             if (eof) {
                 if (currentReader != null)
                     currentReader.close();
-                if (client instanceof FtpRemoteClient ftp) {
-                    ftp.completePending();
+                if (client instanceof FtpRemoteClient) {
+                    ((FtpRemoteClient) client).completePending();
                 }
                 if (currentStream != null)
                     currentStream.close();
