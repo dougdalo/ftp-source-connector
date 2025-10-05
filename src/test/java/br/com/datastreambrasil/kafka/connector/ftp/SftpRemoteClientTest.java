@@ -9,7 +9,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -68,6 +70,18 @@ class SftpRemoteClientTest {
             public void moveFile(String sourcePath, String destinationPath) throws Exception {
                 injectMocks();
                 super.moveFile(sourcePath, destinationPath);
+            }
+
+            @Override
+            public void deleteFile(String path) throws Exception {
+                injectMocks();
+                super.deleteFile(path);
+            }
+
+            @Override
+            public void writeTextFile(String path, String contents, Charset charset) throws Exception {
+                injectMocks();
+                super.writeTextFile(path, contents, charset);
             }
 
             @Override
@@ -130,6 +144,23 @@ class SftpRemoteClientTest {
 
         assertDoesNotThrow(() -> client.moveFile("/stage/file.csv", "/archive/file.csv"));
         verify(mockSftp).rename("/stage/file.csv", "/archive/file.csv");
+    }
+
+    @Test
+    void testDeleteFile() throws Exception {
+        doNothing().when(mockSftp).remove("/stage/file.csv");
+
+        assertDoesNotThrow(() -> client.deleteFile("/stage/file.csv"));
+        verify(mockSftp).remove("/stage/file.csv");
+    }
+
+    @Test
+    void testWriteTextFile() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        when(mockSftp.write("/archive/summary.txt")).thenReturn(out);
+
+        assertDoesNotThrow(() -> client.writeTextFile("/archive/summary.txt", "content", StandardCharsets.UTF_8));
+        assertEquals("content", new String(out.toByteArray(), StandardCharsets.UTF_8));
     }
 
     @Test

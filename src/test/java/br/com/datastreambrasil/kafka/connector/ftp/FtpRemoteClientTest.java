@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,18 @@ class FtpRemoteClientTest {
             public void moveFile(String sourcePath, String destinationPath) throws Exception {
                 injectMock();
                 super.moveFile(sourcePath, destinationPath);
+            }
+
+            @Override
+            public void deleteFile(String path) throws Exception {
+                injectMock();
+                super.deleteFile(path);
+            }
+
+            @Override
+            public void writeTextFile(String path, String contents, Charset charset) throws Exception {
+                injectMock();
+                super.writeTextFile(path, contents, charset);
             }
 
             @Override
@@ -145,6 +158,44 @@ class FtpRemoteClientTest {
 
         Exception ex = assertThrows(Exception.class, () -> client.moveFile("/src.csv", "/dest.csv"));
         assertTrue(ex.getMessage().contains("Failed to move file"));
+    }
+
+    @Test
+    void testDeleteFileSuccess() throws Exception {
+        when(mockFtpClient.deleteFile("/stage/file.csv")).thenReturn(true);
+
+        assertDoesNotThrow(() -> client.deleteFile("/stage/file.csv"));
+        verify(mockFtpClient).deleteFile("/stage/file.csv");
+    }
+
+    @Test
+    void testDeleteFileFailure() throws Exception {
+        when(mockFtpClient.deleteFile("/stage/file.csv")).thenReturn(false);
+        when(mockFtpClient.getReplyString()).thenReturn("550 File not found");
+
+        Exception ex = assertThrows(Exception.class, () -> client.deleteFile("/stage/file.csv"));
+        assertTrue(ex.getMessage().contains("Failed to delete file"));
+    }
+
+    @Test
+    void testWriteTextFileSuccess() throws Exception {
+        when(mockFtpClient.storeFile(eq("/archive/summary.txt"), any(InputStream.class))).thenAnswer(invocation -> {
+            InputStream in = invocation.getArgument(1);
+            byte[] bytes = in.readAllBytes();
+            assertEquals("content", new String(bytes, StandardCharsets.UTF_8));
+            return true;
+        });
+
+        assertDoesNotThrow(() -> client.writeTextFile("/archive/summary.txt", "content", StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void testWriteTextFileFailure() throws Exception {
+        when(mockFtpClient.storeFile(eq("/archive/summary.txt"), any(InputStream.class))).thenReturn(false);
+        when(mockFtpClient.getReplyString()).thenReturn("550 Permission denied");
+
+        Exception ex = assertThrows(Exception.class, () -> client.writeTextFile("/archive/summary.txt", "content", StandardCharsets.UTF_8));
+        assertTrue(ex.getMessage().contains("Failed to write file"));
     }
 
     @Test

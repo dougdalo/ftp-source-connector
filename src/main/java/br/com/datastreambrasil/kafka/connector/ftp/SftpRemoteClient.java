@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +74,19 @@ public class SftpRemoteClient implements RemoteClient {
     @Override
     public void moveFile(String sourcePath, String destinationPath) throws Exception {
         sftp.rename(sourcePath, destinationPath);
+    }
+
+    @Override
+    public void deleteFile(String path) throws Exception {
+        sftp.remove(path);
+    }
+
+    @Override
+    public void writeTextFile(String path, String contents, Charset charset) throws Exception {
+        byte[] data = contents.getBytes(charset);
+        try (OutputStream out = sftp.write(path)) {
+            out.write(data);
+        }
     }
 
     @Override

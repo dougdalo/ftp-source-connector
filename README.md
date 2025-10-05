@@ -19,10 +19,9 @@ Each file is read line by line, and each line is sent as an independent Kafka re
 - Optional field mapping via `ftp.file.headers`
 - Optional Kafka key based on one or more fields (`ftp.kafka.key.field`)
 - Limit records returned per poll (`ftp.max.records.per.poll`)
-- Moves files to:
-  - A staging folder before processing
-  - An archive folder after processing
-- Archives include a timestamp in filename  
+- Moves files to a staging folder before processing
+- Generates a summary report file in the archive directory after processing and removes the staged copy
+- Summary files include a timestamp in filename
   Format: `yyyyMMdd_HHmmssSSS` (e.g., `WB1_20250408_121045123.txt`)
 
 ---
