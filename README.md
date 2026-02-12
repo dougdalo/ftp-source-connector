@@ -49,7 +49,9 @@ Quick recovery:
 
 1. Rename classes/files to match exactly.
 2. Remove stale generated files from IDE caches.
-3. Run `./scripts/check-java-public-type-names.sh` to identify file/class mismatches quickly.
+3. Run `./scripts/check-java-public-type-names.sh` (from project root) to identify file/class mismatches quickly.
+   - Optional: pass a directory, e.g. `./scripts/check-java-public-type-names.sh src/main/java`.
+main
 4. Run `mvn clean compile` again.
 
 ---

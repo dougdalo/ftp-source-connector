@@ -13,6 +13,7 @@ status=0
 while IFS= read -r -d '' file; do
   base_name="$(basename "$file" .java)"
 
+
   # Finds first public top-level type declaration.
   declared_name="$({
     sed -E 's://.*$::' "$file" |
