@@ -32,6 +32,29 @@ Each file is read line by line, and each line is sent as an independent Kafka re
 
 ---
 
+## Troubleshooting
+
+### Compilation error: `class FtpSourceTask is public, should be declared in a file named FtpSourceTask.java`
+
+If you created custom classes such as `FtpSourceTaskEnhanced.java` or `FtpSourceConnectorEnhanced.java`, ensure that each `public class` name exactly matches its file name.
+
+Examples:
+
+- `FtpSourceTaskEnhanced.java` must declare `public class FtpSourceTaskEnhanced`.
+- `FtpSourceTask.java` must declare `public class FtpSourceTask`.
+
+If a connector class references `FtpSourceTaskEnhanced`, then that class must exist with the exact package and name.
+
+Quick recovery:
+
+1. Rename classes/files to match exactly.
+2. Remove stale generated files from IDE caches.
+3. Run `./scripts/check-java-public-type-names.sh` (from project root) to identify file/class mismatches quickly.
+   - Optional: pass a directory, e.g. `./scripts/check-java-public-type-names.sh src/main/java`.
+4. Run `mvn clean compile` again.
+
+---
+
 ## Configuration Example
 
 ```json
