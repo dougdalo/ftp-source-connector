@@ -13,12 +13,17 @@ status=0
 while IFS= read -r -d '' file; do
   base_name="$(basename "$file" .java)"
 
-  # Finds first public top-level type declaration in a POSIX-tool-friendly way.
+
+  # Finds first public top-level type declaration.
   declared_name="$({
     sed -E 's://.*$::' "$file" |
       tr -d '\r' |
-      grep -Eom1 '^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+[A-Za-z_][A-Za-z0-9_]*' |
-      sed -E 's/^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*$/\2/'
+      awk '
+        match($0, /^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)/, m) {
+          print m[2];
+          exit
+        }
+      '
   } || true)"
 
   if [[ -n "$declared_name" && "$declared_name" != "$base_name" ]]; then
