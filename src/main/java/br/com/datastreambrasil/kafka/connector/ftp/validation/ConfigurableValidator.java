@@ -9,7 +9,13 @@ import java.util.*;
 
 /**
  * Configurable validator that applies rules to struct fields
- * Configuration format: "field1:not_empty,field2:numeric,field3:range(0,100)"
+ * Configuration format examples:
+ *  - "field1:not_empty"
+ *  - "field2:numeric"
+ *  - "field3:range(0,100)"
+ *  - "field4:date(yyyyMMdd)"
+ *
+ * Important: commas inside parentheses (e.g., range(0,100)) must NOT split field configs.
  */
 public class ConfigurableValidator implements RecordValidator {
     private static final Logger log = LoggerFactory.getLogger(ConfigurableValidator.class);
@@ -30,7 +36,7 @@ public class ConfigurableValidator implements RecordValidator {
 
         for (Map.Entry<String, List<ValidationRule>> entry : fieldRules.entrySet()) {
             String fieldName = entry.getKey();
-            Object value = null;
+            Object value;
 
             try {
                 value = record.get(fieldName);
@@ -41,8 +47,10 @@ public class ConfigurableValidator implements RecordValidator {
 
             for (ValidationRule rule : entry.getValue()) {
                 if (!rule.isValid(value)) {
-                    errors.add(String.format("Field '%s' validation '%s' failed: %s (value='%s')",
-                            fieldName, rule.getName(), rule.getMessage(), value));
+                    errors.add(String.format(
+                            "Field '%s' validation '%s' failed: %s (value='%s')",
+                            fieldName, rule.getName(), rule.getMessage(), value
+                    ));
                 }
             }
         }
@@ -57,8 +65,8 @@ public class ConfigurableValidator implements RecordValidator {
             return rules;
         }
 
-        // Format: "field1:rule1,field2:rule2(param1,param2),field3:rule3"
-        String[] fieldConfigs = rulesConfig.split(",");
+        // Split by commas, but DO NOT split commas inside parentheses
+        List<String> fieldConfigs = splitTopLevel(rulesConfig);
 
         for (String fieldConfig : fieldConfigs) {
             String[] parts = fieldConfig.trim().split(":", 2);
@@ -73,10 +81,46 @@ public class ConfigurableValidator implements RecordValidator {
             ValidationRule rule = parseRule(ruleSpec);
             if (rule != null) {
                 rules.computeIfAbsent(fieldName, k -> new ArrayList<>()).add(rule);
+            } else {
+                log.warn("Could not parse validation rule: {}", ruleSpec);
             }
         }
 
         return rules;
+    }
+
+    /**
+     * Split a string by commas that are NOT inside parentheses.
+     * Example: "a:range(0,100),b:not_empty" -> ["a:range(0,100)", "b:not_empty"]
+     */
+    private List<String> splitTopLevel(String input) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        int parenDepth = 0;
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (c == '(') parenDepth++;
+            if (c == ')' && parenDepth > 0) parenDepth--;
+
+            if (c == ',' && parenDepth == 0) {
+                String token = current.toString().trim();
+                if (!token.isEmpty()) {
+                    parts.add(token);
+                }
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+
+        String tail = current.toString().trim();
+        if (!tail.isEmpty()) {
+            parts.add(tail);
+        }
+
+        return parts;
     }
 
     private ValidationRule parseRule(String ruleSpec) {
@@ -86,8 +130,16 @@ public class ConfigurableValidator implements RecordValidator {
         String[] params = new String[0];
 
         if (parenIndex > 0) {
+            // Must end with ')'
+            if (!ruleSpec.endsWith(")")) {
+                log.warn("Invalid parameterized rule (missing ')'): {}", ruleSpec);
+                return null;
+            }
+
             ruleName = ruleSpec.substring(0, parenIndex);
             String paramsStr = ruleSpec.substring(parenIndex + 1, ruleSpec.length() - 1);
+
+            // Split params by comma (inside the parentheses)
             params = paramsStr.split(",");
             for (int i = 0; i < params.length; i++) {
                 params[i] = params[i].trim();
