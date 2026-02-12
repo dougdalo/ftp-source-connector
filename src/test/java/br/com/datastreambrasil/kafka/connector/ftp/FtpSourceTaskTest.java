@@ -6,9 +6,11 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -71,13 +73,16 @@ class FtpSourceTaskTest {
         when(mockClient.listFiles(anyString(), any())).thenReturn(List.of("/stage/test.txt"), List.of());
         when(mockClient.retrieveFileStream(anyString())).thenReturn(inputStream);
         doNothing().when(mockClient).moveFile(anyString(), anyString());
+        doNothing().when(mockClient).deleteFile(anyString());
+        doNothing().when(mockClient).writeTextFile(anyString(), anyString(), any(Charset.class));
         return mockClient;
     }
 
     @Test
     void testEachLineConvertedToJsonWithHeaders() throws Exception {
         TestableFtpSourceTask task = new TestableFtpSourceTask();
-        task.injectClient(createMockClient(input));
+        RemoteClient mockClient = createMockClient(input);
+        task.injectClient(mockClient);
         task.start(createBaseConfig("json"));
 
         List<SourceRecord> records = task.poll();
@@ -92,6 +97,17 @@ class FtpSourceTaskTest {
         assertEquals("20250217", struct.getString("data"));
         assertEquals("1754", struct.getString("hora"));
         assertTrue(struct.schema().fields().size() > 3);
+
+        verify(mockClient).deleteFile("/mock-stage/test.txt");
+        ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> summaryCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Charset> charsetCaptor = ArgumentCaptor.forClass(Charset.class);
+        verify(mockClient).writeTextFile(pathCaptor.capture(), summaryCaptor.capture(), charsetCaptor.capture());
+        assertTrue(pathCaptor.getValue().startsWith("/mock-archive/test_"));
+        assertTrue(pathCaptor.getValue().endsWith(".txt"));
+        assertTrue(summaryCaptor.getValue().contains("Lines processed"));
+        assertTrue(summaryCaptor.getValue().contains("Lines processed: " + records.size()));
+        assertEquals(Charset.forName("UTF-8"), charsetCaptor.getValue());
     }
 
     @Test

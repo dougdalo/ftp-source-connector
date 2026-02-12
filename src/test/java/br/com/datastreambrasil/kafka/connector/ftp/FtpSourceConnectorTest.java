@@ -52,7 +52,7 @@ class FtpSourceConnectorTest {
 
     @Test
     void testVersion() {
-        assertEquals("1.0.0", connector.version());
+        assertEquals(FtpSourceConnector.VERSION, connector.version());
     }
 
     @Test

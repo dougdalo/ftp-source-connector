@@ -5,8 +5,10 @@ import org.apache.commons.net.ftp.FTPFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +81,29 @@ public class FtpRemoteClient implements RemoteClient {
             log.error("Failed to rename file. FTP reply: {}", reply);
             throw new IOException("Failed to move file from " + sourcePath + " to " + destinationPath
                     + ". FTP reply: " + reply);
+        }
+    }
+
+    @Override
+    public void deleteFile(String path) throws Exception {
+        boolean success = ftpClient.deleteFile(path);
+        if (!success) {
+            String reply = ftpClient.getReplyString();
+            log.error("Failed to delete file {}. FTP reply: {}", path, reply);
+            throw new IOException("Failed to delete file " + path + ". FTP reply: " + reply);
+        }
+    }
+
+    @Override
+    public void writeTextFile(String path, String contents, Charset charset) throws Exception {
+        byte[] bytes = contents.getBytes(charset);
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)) {
+            boolean success = ftpClient.storeFile(path, inputStream);
+            if (!success) {
+                String reply = ftpClient.getReplyString();
+                log.error("Failed to store file {}. FTP reply: {}", path, reply);
+                throw new IOException("Failed to write file " + path + ". FTP reply: " + reply);
+            }
         }
     }
 

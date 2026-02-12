@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class FtpSourceConnector extends SourceConnector {
 
-        public static final String VERSION = "1.0.0";
+        public static final String VERSION = "1.0.1";
 
         public static final String FTP_PROTOCOL = "ftp.protocol";
         public static final String FTP_HOST = "ftp.host";

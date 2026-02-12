@@ -1,6 +1,8 @@
 package br.com.datastreambrasil.kafka.connector.ftp;
 
-import org.apache.kafka.connect.data.*;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -10,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -69,8 +72,10 @@ public class FtpSourceTask extends SourceTask {
                         ? new SftpRemoteClient(props)
                         : new FtpRemoteClient(props);
             }
+            long startTime = System.currentTimeMillis();
             this.client.connect();
-            log.info("Connected to {} server", protocol.toUpperCase());
+            long estimatedTime = System.currentTimeMillis() - startTime;
+            log.info("Connected to {} {} server in {} ms", protocol.toUpperCase(), props.get(FtpSourceConnector.FTP_HOST), estimatedTime);
 
             this.currentReader = null;
             this.currentStream = null;
@@ -90,7 +95,10 @@ public class FtpSourceTask extends SourceTask {
         try {
             if (currentReader == null) {
                 log.info("Polling files from directory: {}", directory);
+                long startTime = System.currentTimeMillis();
                 List<String> files = client.listFiles(directory, filePattern);
+                long estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Polled {} files from directory: {} in {} ms", files.size(), directory, estimatedTime);
                 if (files.isEmpty()) {
                     Thread.sleep(pollInterval);
                     return records;
@@ -101,19 +109,38 @@ public class FtpSourceTask extends SourceTask {
                 currentStagedPath = stageDir + "/" + currentFilename;
 
                 log.info("Staging file: {} → {}", file, currentStagedPath);
+                startTime = System.currentTimeMillis();
                 client.moveFile(file, currentStagedPath);
+                estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Staged file: {} → {} in {} ms", file, currentStagedPath, estimatedTime);
 
+                log.info("Streaming file: {}", currentStagedPath);
+                startTime = System.currentTimeMillis();
                 currentStream = client.retrieveFileStream(currentStagedPath);
+                estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Streamed file: {} in {} ms", currentStagedPath, estimatedTime);
+
                 currentReader = new BufferedReader(new InputStreamReader(currentStream, fileEncoding));
                 linesProcessed = 0;
             }
 
             boolean eof = false;
             String line = null;
+            long generalStartTime = System.currentTimeMillis();
+
+            long readLineStartTime = System.currentTimeMillis();
+            long readLineTotalTime = 0;
+            long readLineMaxTime = 0;
             while (records.size() < maxRecordsPerPoll && (line = currentReader.readLine()) != null) {
+                long rowReadEstimatedTime = System.currentTimeMillis() - readLineStartTime;
+                if(rowReadEstimatedTime > readLineMaxTime){
+                    readLineMaxTime = rowReadEstimatedTime;
+                }
+                readLineTotalTime += rowReadEstimatedTime;
                 Map<String, String> sourcePartition = Collections.singletonMap("file", currentFilename);
                 Map<String, Long> sourceOffset = Collections.singletonMap("position", System.currentTimeMillis());
 
+                long startTime = System.currentTimeMillis();
                 RecordModel record = buildRecordModel(line);
                 Object value = record.value;
                 Schema schema = record.schema;
@@ -133,37 +160,68 @@ public class FtpSourceTask extends SourceTask {
                         value));
 
                 linesProcessed++;
+                long estimatedTime = System.currentTimeMillis() - startTime;
+
                 if (linesProcessed % 10000 == 0) {
-                    log.info("Processed {} lines from {}", linesProcessed, currentFilename);
+                    long elapsedEstimatedTime = System.currentTimeMillis() - generalStartTime;
+                    long currentReadLineAverageTime = readLineTotalTime / linesProcessed;
+                    log.info("Processed {} lines from {} in {} ms (row read avg {} ms max {} ms)", linesProcessed, currentFilename, elapsedEstimatedTime, currentReadLineAverageTime, readLineMaxTime);
                 }
+
+                readLineStartTime = System.currentTimeMillis();
             }
+            long generalEstimatedTime = System.currentTimeMillis() - generalStartTime;
 
             if (line == null) {
                 eof = true;
             }
 
+            long readLineAverageTime = 0;
+            if(readLineTotalTime != 0 && linesProcessed != 0){
+                readLineAverageTime = readLineTotalTime / linesProcessed;
+            }
+
             if (eof) {
                 if (currentReader != null)
                     currentReader.close();
-                if (client instanceof FtpRemoteClient ftp) {
-                    ftp.completePending();
+                if (client instanceof FtpRemoteClient) {
+                    ((FtpRemoteClient) client).completePending();
                 }
                 if (currentStream != null)
                     currentStream.close();
 
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS");
                 String timestamp = LocalDateTime.now().format(formatter);
-                String archiveFilename = currentFilename.replaceAll("(\\.\\w+)$", "_" + timestamp + "$1");
-                String archivedPath = archiveDir + "/" + archiveFilename;
+                String summaryFilename = currentFilename.replaceAll("(\\.\\w+)?$", "_" + timestamp + ".txt");
+                String summaryPath = archiveDir + "/" + summaryFilename;
+                String summaryContent = String.format(Locale.ROOT,
+                        "File: %s%nLines processed: %d%nProcessed at: %s%nProcessing time (ms): %d%nAverage line read time (ms): %d%nMax line read time (ms): %d",
+                        currentFilename,
+                        linesProcessed,
+                        timestamp,
+                        generalEstimatedTime,
+                        readLineAverageTime,
+                        readLineMaxTime);
 
-                log.info("Archiving file: {} → {}", currentStagedPath, archivedPath);
-                client.moveFile(currentStagedPath, archivedPath);
+                log.info("Deleting staged file: {}", currentStagedPath);
+                long startTime = System.currentTimeMillis();
+                client.deleteFile(currentStagedPath);
+                long estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Deleted staged file: {} in {} ms", currentStagedPath, estimatedTime);
 
-                log.info("Finished processing file {} with {} lines", currentFilename, linesProcessed);
+                log.info("Writing summary file: {}", summaryPath);
+                startTime = System.currentTimeMillis();
+                client.writeTextFile(summaryPath, summaryContent, Charset.forName(fileEncoding));
+                estimatedTime = System.currentTimeMillis() - startTime;
+                log.info("Summary file written: {} in {} ms", summaryPath, estimatedTime);
+
+                log.info("Finished processing file {} with {} lines in {} ms (row read avg {} ms max {} ms)", currentFilename, linesProcessed, generalEstimatedTime, readLineAverageTime, readLineMaxTime);
                 currentReader = null;
                 currentStream = null;
                 currentFilename = null;
                 currentStagedPath = null;
+            } else {
+                log.info("Skipped processing file {} with {} lines in {} ms (row read avg {} ms max {} ms)", currentFilename, linesProcessed, generalEstimatedTime, readLineAverageTime, readLineMaxTime);
             }
 
         } catch (Exception e) {
@@ -238,4 +296,5 @@ public class FtpSourceTask extends SourceTask {
             return new RecordModel(line, Schema.STRING_SCHEMA);
         }
     }
+
 }
