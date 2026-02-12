@@ -26,10 +26,10 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
-public class FtpSourceTask extends SourceTask {
+public class FtpSourceTaskEnhanced extends SourceTask {
 
-    public static final String VERSION = FtpSourceConnector.VERSION;
-    private static final Logger log = LoggerFactory.getLogger(FtpSourceTask.class);
+    public static final String VERSION = FtpSourceConnectorEnhanced.VERSION;
+    private static final Logger log = LoggerFactory.getLogger(FtpSourceTaskEnhanced.class);
 
     protected RemoteClient client;
     private String topic;
@@ -88,50 +88,50 @@ public class FtpSourceTask extends SourceTask {
     public void start(Map<String, String> props) {
         log.info("Starting FtpSourceTask with enhanced features");
 
-        String protocol = props.get(FtpSourceConnector.FTP_PROTOCOL);
-        this.topic = props.get(FtpSourceConnector.TOPIC);
-        this.directory = props.get(FtpSourceConnector.FTP_DIRECTORY);
-        this.stageDir = props.get(FtpSourceConnector.FTP_DIRECTORY_STAGE);
-        this.archiveDir = props.get(FtpSourceConnector.FTP_DIRECTORY_ARCHIVE);
-        this.filePattern = props.get(FtpSourceConnector.FTP_FILE_PATTERN);
-        this.fileEncoding = props.getOrDefault(FtpSourceConnector.FTP_FILE_ENCODING, "UTF-8");
-        this.outputFormat = props.getOrDefault(FtpSourceConnector.FTP_FILE_OUTPUT_FORMAT, "string").toLowerCase();
-        this.tokenizer = props.getOrDefault(FtpSourceConnector.FTP_FILE_TOKENIZER, ";");
-        this.keyFieldName = props.getOrDefault(FtpSourceConnector.FTP_KAFKA_KEY_FIELD, "").trim();
-        this.pollInterval = Long.parseLong(props.getOrDefault(FtpSourceConnector.FTP_POLL_INTERVAL, "10000"));
-        this.maxRecordsPerPoll = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_MAX_RECORDS_PER_POLL, "1000"));
+        String protocol = props.get(FtpSourceConnectorEnhanced.FTP_PROTOCOL);
+        this.topic = props.get(FtpSourceConnectorEnhanced.TOPIC);
+        this.directory = props.get(FtpSourceConnectorEnhanced.FTP_DIRECTORY);
+        this.stageDir = props.get(FtpSourceConnectorEnhanced.FTP_DIRECTORY_STAGE);
+        this.archiveDir = props.get(FtpSourceConnectorEnhanced.FTP_DIRECTORY_ARCHIVE);
+        this.filePattern = props.get(FtpSourceConnectorEnhanced.FTP_FILE_PATTERN);
+        this.fileEncoding = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_FILE_ENCODING, "UTF-8");
+        this.outputFormat = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_FILE_OUTPUT_FORMAT, "string").toLowerCase();
+        this.tokenizer = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_FILE_TOKENIZER, ";");
+        this.keyFieldName = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_KAFKA_KEY_FIELD, "").trim();
+        this.pollInterval = Long.parseLong(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_POLL_INTERVAL, "10000"));
+        this.maxRecordsPerPoll = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_MAX_RECORDS_PER_POLL, "1000"));
 
         // Enhanced configurations
-        this.bufferSize = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_BUFFER_SIZE, "32768"));
-        this.autoDetectCompression = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnector.FTP_AUTO_DETECT_COMPRESSION, "true"));
-        this.skipHeaderLines = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_SKIP_HEADER_LINES, "0"));
-        this.skipFooterLines = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_SKIP_FOOTER_LINES, "0"));
-        this.skipEmptyLines = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnector.FTP_SKIP_EMPTY_LINES, "true"));
-        this.commentPrefix = props.getOrDefault(FtpSourceConnector.FTP_COMMENT_PREFIX, "");
+        this.bufferSize = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_BUFFER_SIZE, "32768"));
+        this.autoDetectCompression = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_AUTO_DETECT_COMPRESSION, "true"));
+        this.skipHeaderLines = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_SKIP_HEADER_LINES, "0"));
+        this.skipFooterLines = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_SKIP_FOOTER_LINES, "0"));
+        this.skipEmptyLines = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_SKIP_EMPTY_LINES, "true"));
+        this.commentPrefix = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_COMMENT_PREFIX, "");
 
         // Validation
-        this.validationEnabled = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnector.FTP_VALIDATION_ENABLED, "false"));
-        this.validationMode = props.getOrDefault(FtpSourceConnector.FTP_VALIDATION_MODE, "strict");
-        String validationRules = props.getOrDefault(FtpSourceConnector.FTP_VALIDATION_RULES, "");
+        this.validationEnabled = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_VALIDATION_ENABLED, "false"));
+        this.validationMode = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_VALIDATION_MODE, "strict");
+        String validationRules = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_VALIDATION_RULES, "");
         if (validationEnabled && !validationRules.isEmpty()) {
             this.validator = new ConfigurableValidator(validationRules);
             log.info("Validation enabled with mode: {} and rules: {}", validationMode, validationRules);
         }
 
         // DLQ
-        this.dlqEnabled = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnector.FTP_DLQ_ENABLED, "false"));
-        this.dlqTopic = props.getOrDefault(FtpSourceConnector.FTP_DLQ_TOPIC, topic + ".dlq");
+        this.dlqEnabled = Boolean.parseBoolean(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_DLQ_ENABLED, "false"));
+        this.dlqTopic = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_DLQ_TOPIC, topic + ".dlq");
 
         // Retry
-        this.retryMaxAttempts = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_RETRY_MAX_ATTEMPTS, "3"));
-        this.retryBackoffMs = Long.parseLong(props.getOrDefault(FtpSourceConnector.FTP_RETRY_BACKOFF_MS, "1000"));
-        this.retryMaxBackoffMs = Long.parseLong(props.getOrDefault(FtpSourceConnector.FTP_RETRY_MAX_BACKOFF_MS, "30000"));
+        this.retryMaxAttempts = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_RETRY_MAX_ATTEMPTS, "3"));
+        this.retryBackoffMs = Long.parseLong(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_RETRY_BACKOFF_MS, "1000"));
+        this.retryMaxBackoffMs = Long.parseLong(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_RETRY_MAX_BACKOFF_MS, "30000"));
 
         // Metrics
         this.metrics = new ProcessingMetrics();
-        this.metricsIntervalLines = Integer.parseInt(props.getOrDefault(FtpSourceConnector.FTP_METRICS_INTERVAL_LINES, "10000"));
+        this.metricsIntervalLines = Integer.parseInt(props.getOrDefault(FtpSourceConnectorEnhanced.FTP_METRICS_INTERVAL_LINES, "10000"));
 
-        String headersConfig = props.getOrDefault(FtpSourceConnector.FTP_FILE_HEADERS, "").trim();
+        String headersConfig = props.getOrDefault(FtpSourceConnectorEnhanced.FTP_FILE_HEADERS, "").trim();
         this.fieldHeaders = headersConfig.isEmpty() ? null : Arrays.asList(headersConfig.split("\\s*,\\s*"));
 
         // Pre-build schema if headers are fixed
@@ -156,7 +156,7 @@ public class FtpSourceTask extends SourceTask {
             this.client.connect();
             long estimatedTime = System.currentTimeMillis() - startTime;
             log.info("Connected to {} {} server in {} ms with retry support (max attempts: {})",
-                    protocol.toUpperCase(), props.get(FtpSourceConnector.FTP_HOST), estimatedTime, retryMaxAttempts);
+                    protocol.toUpperCase(), props.get(FtpSourceConnectorEnhanced.FTP_HOST), estimatedTime, retryMaxAttempts);
 
             this.currentReader = null;
             this.currentStream = null;

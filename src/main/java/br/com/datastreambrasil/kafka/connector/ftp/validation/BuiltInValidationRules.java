@@ -135,6 +135,10 @@ public class BuiltInValidationRules {
         };
     }
 
+    /**
+     * Range validator: accepts Number values or numeric strings.
+     * Inclusive boundaries: min <= value <= max
+     */
     public static ValidationRule range(double min, double max) {
         return new ValidationRule() {
             @Override
@@ -145,12 +149,22 @@ public class BuiltInValidationRules {
             @Override
             public boolean isValid(Object value) {
                 if (value == null) return false;
-                try {
-                    double val = Double.parseDouble(value.toString());
-                    return val >= min && val <= max;
-                } catch (NumberFormatException e) {
-                    return false;
+
+                double v;
+
+                if (value instanceof Number) {
+                    v = ((Number) value).doubleValue();
+                } else {
+                    // Covers String and any other object with numeric toString()
+                    String s = value.toString().trim();
+                    try {
+                        v = Double.parseDouble(s);
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
                 }
+
+                return v >= min && v <= max;
             }
 
             @Override
