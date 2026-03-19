@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="${1:-src/main/java}"
+ROOT_DIR="${1:-/home/douglasdalo/IdeaProjects/ftp-source-connector/src/main/java}"
 
 if [[ ! -d "$ROOT_DIR" ]]; then
   echo "Directory not found: $ROOT_DIR" >&2
@@ -13,17 +13,12 @@ status=0
 while IFS= read -r -d '' file; do
   base_name="$(basename "$file" .java)"
 
-
-  # Finds first public top-level type declaration.
+  # Finds first public top-level type declaration in a POSIX-tool-friendly way.
   declared_name="$({
     sed -E 's://.*$::' "$file" |
       tr -d '\r' |
-      awk '
-        match($0, /^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)/, m) {
-          print m[2];
-          exit
-        }
-      '
+      grep -Eom1 '^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+[A-Za-z_][A-Za-z0-9_]*' |
+      sed -E 's/^[[:space:]]*public[[:space:]]+(class|interface|enum|record)[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*$/\2/'
   } || true)"
 
   if [[ -n "$declared_name" && "$declared_name" != "$base_name" ]]; then
