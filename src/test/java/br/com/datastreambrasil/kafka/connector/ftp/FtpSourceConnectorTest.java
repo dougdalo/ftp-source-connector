@@ -47,7 +47,7 @@ class FtpSourceConnectorTest {
 
     @Test
     void testTaskClass() {
-        assertEquals(FtpSourceTask.class, connector.taskClass());
+        assertEquals(FtpSourceTaskEnhanced.class, connector.taskClass());
     }
 
     @Test
